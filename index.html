@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Sena - Memória Persistente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print { .no-print { display: none; } }
+        .ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background-color: #209869;
+            color: white;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+     
+    </style>
+</head>
+<body class="bg-slate-100 p-4">
+
+    <header class="max-w-6xl mx-auto text-center mb-8 no-print">
+        <h1 class="text-3xl font-bold text-green-800">Bolão Mega Sena Virada 1Bilhão</h1>
+        <p class="text-gray-600 mb-4 text-sm">Valor R$7,50 cada jogo é bolão tem mais chances de ganhar com mais jogos 
+            não fique de fora, coloque seu nome a frente de cada jogo e seja um milionário.</p>
+        <p class="text-gray-600 mb-4 text-sm">Pix email: walfredoamj@gmail.com ,Banco Nubank, walfredo almeida</p>
+        <div class="flex justify-center gap-2 flex-wrap">
+            <button onclick="salvarArquivo()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow-sm transition flex items-center gap-2">
+                💾 Baixar Relatório (.txt)
+            </button>
+            <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-800 text-white px-5 py-2 rounded-lg shadow-sm transition">
+                🖨️ Imprimir
+            </button>
+            <button onclick="" class="bg-red-100 hover:bg-red-200 text-red-700 px-5 py-2 rounded-lg transition border border-red-200">
+                🗑️ Resetar Tudo
+            </button>
+              <div id="imagemads" class=""></div>
+        </div>
+    </header>
+   
+
+    <div id="cartelas-container" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+    <script>
+        const container = document.getElementById('cartelas-container');
+        const TOTAL_CARTELAS = 10;
+        const JOGOS_POR_CARTELA = 8;
+
+        // Função para gerar ou recuperar números fixos (para não mudarem no F5)
+        function obterJogos() {
+            let dadosSalvos = localStorage.getItem('mega_sena_jogos');
+            if (dadosSalvos) return JSON.parse(dadosSalvos);
+
+            const novoSet = [];
+            for (let c = 0; c < TOTAL_CARTELAS; c++) {
+                const cartela = [];
+                for (let j = 0; j < JOGOS_POR_CARTELA; j++) {
+                    cartela.push(gerarDezenas());
+                }
+                novoSet.push(cartela);
+            }
+            localStorage.setItem('mega_sena_jogos', JSON.stringify(novoSet));
+            return novoSet;
+        }
+
+        function gerarDezenas() {
+            let n = [];
+            while(n.length < 6) {
+                let r = Math.floor(Math.random() * 60) + 1;
+                if(!n.includes(r)) n.push(r);
+            }
+            return n.sort((a, b) => a - b);
+        }
+
+        function renderizar() {
+            const jogos = obterJogos();
+            const nomesSalvos = JSON.parse(localStorage.getItem('mega_sena_nomes') || '{}');
+            
+            container.innerHTML = '';
+
+            jogos.forEach((cartela, cIndex) => {
+                let div = document.createElement('div');
+                div.className = "bg-white p-4 rounded-xl shadow border-t-4 border-green-600";
+                
+                let html = `<h2 class="font-bold text-green-700 mb-3 uppercase text-sm tracking-widest">Cartela #${cIndex + 1}</h2>`;
+
+                cartela.forEach((dezenas, jIndex) => {
+                    const inputId = `c${cIndex}-j${jIndex}`;
+                    const nomeAtual = nomesSalvos[inputId] || '';
+                    
+                    html += `
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="text" maxlength="10" placeholder="Nome" 
+                                   value="${nomeAtual}"
+                                   oninput="salvarNome('${inputId}', this.value)"
+                                   class="w-24 border border-gray-300 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-green-500 outline-none">
+                            <div class="flex gap-1 bg-gray-50 p-1.5 rounded-lg flex-grow justify-center border border-gray-100">
+                                ${dezenas.map(num => `<span class="ball">${num.toString().padStart(2, '0')}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                div.innerHTML = html;
+                container.appendChild(div);
+            });
+        }
+
+        function salvarNome(id, valor) {
+            const nomes = JSON.parse(localStorage.getItem('mega_sena_nomes') || '{}');
+            nomes[id] = valor;
+            localStorage.setItem('mega_sena_nomes', JSON.stringify(nomes));
+        }
+
+        function salvarArquivo() {
+            const jogos = obterJogos();
+            const nomes = JSON.parse(localStorage.getItem('mega_sena_nomes') || '{}');
+            let conteudo = "--- RELATÓRIO DO BOLÃO ---\n\n";
+
+            jogos.forEach((cartela, cIdx) => {
+                conteudo += `CARTELA ${cIdx + 1}\n`;
+                cartela.forEach((dezenas, jIdx) => {
+                    const nome = nomes[`c${cIdx}-j${jIdx}`] || "VAZIO";
+                    conteudo += `  Jogo ${jIdx + 1} [${nome.padEnd(10)}]: ${dezenas.join(' - ')}\n`;
+                });
+                conteudo += "\n";
+            });
+
+            const blob = new Blob([conteudo], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'bolao_mega_sena.txt';
+            link.click();
+        }
+
+        function limparTudo() {
+            if(confirm("Deseja apagar todos os nomes e gerar novos números?")) {
+                localStorage.clear();
+                renderizar();
+            }
+        }
+
+        renderizar();
+    </script>
+</body>
+</html>
